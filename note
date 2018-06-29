@@ -1,0 +1,9 @@
+// TODO
+webSocket的Package->server.go
+137行，我把它註解掉
+之後再解決，開個白名單
+
+
+// 一個遊戲開一個go func
+讓game的物件掛在那邊
+實作看看
