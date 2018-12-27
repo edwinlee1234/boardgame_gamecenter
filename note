@@ -1,9 +1,11 @@
 // TODO
-webSocket的Package->server.go
-137行，我把它註解掉
-之後再解決，開個白名單
-
 
 // 一個遊戲開一個go func
 讓game的物件掛在那邊
+gameover就讓它死掉
 實作看看
+
+要不要把每個遊戲都做成一個服務XD
+完全都放在遊戲中心，會有困難，每個遊戲的input output都不一樣
+並沒有辨法做成一樣的接口
+gamecenter就做成各遊戲的中間接口的服務

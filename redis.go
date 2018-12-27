@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/go-redis/redis"
@@ -9,7 +10,9 @@ import (
 
 func connectRedis() {
 	err := godotenv.Load()
-	checkErr("Error loading .env file", err)
+	if err != nil {
+		log.Fatalf("Error loading .env file %v", err)
+	}
 
 	host := os.Getenv("REDIS_HOST")
 	password := os.Getenv("REDIS_PASSWORD")
@@ -23,5 +26,7 @@ func connectRedis() {
 	})
 
 	_, err = goRedis.Ping().Result()
-	checkErr("Ping Redis Error: ", err)
+	if err != nil {
+		log.Fatalf("Ping Redis Error: %v", err)
+	}
 }

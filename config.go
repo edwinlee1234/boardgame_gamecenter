@@ -5,6 +5,8 @@ var notOpen = 0 // owner only
 var opening = 1 // 開放玩家
 var playing = 2 // 遊戲中
 
+const wsURL = "http://ws:8000"
+
 var channelSupport = map[string]bool{
 	"jaipur": true,
 	"lobby":  true,
