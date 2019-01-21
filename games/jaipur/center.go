@@ -6,6 +6,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+
+	pb "boardgame_gamecenter/proto"
 )
 
 // BroadcastRequest 推播的request格式
@@ -31,7 +33,8 @@ func NewHub(WsAPI string) *JaipurHub {
 
 // JaipurHub 放Jaipur的遊戲
 type JaipurHub struct {
-	Hub   map[int32]*Jaipur
+	Hub map[int32]*Jaipur
+	// TODO Broadcast把它抽出去gamecenter實作 -> WsAPI抽出去
 	WsAPI string
 }
 
@@ -76,19 +79,33 @@ func (j *JaipurHub) Info(userID []int32, gameID int32) error {
 }
 
 // Action Action
-func (j *JaipurHub) Action(gameID int32, userID int32, act Action) error {
+func (j *JaipurHub) Action(userID int32, gameID int32, act interface{}) error {
 	if err := j.checkGame(gameID); err != nil {
 		return errors.New("No Game")
 	}
 
+	actionPd, res := act.(*pb.JaipurActionStruct)
+	if !res {
+		return errors.New("Action struct error")
+	}
+
+	action := Action{
+		Type:             actionPd.Type,
+		Take:             actionPd.Take,
+		Sell:             actionPd.Sell,
+		SwitchSelfCard:   actionPd.SwitchSelfCard,
+		SwitchTargetCard: actionPd.SwitchTargetCard,
+	}
+
 	JaipurClass := j.Hub[gameID]
-	if err := JaipurClass.Action(userID, act); err != nil {
+	if err := JaipurClass.Action(userID, action); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// TODO Broadcast把它抽出去gamecenter實作
 // BroadcastChannel BroadcastChannel
 func (j *JaipurHub) BroadcastChannel(channelID int32, data []byte) {
 	var req BroadcastRequest
@@ -116,4 +133,10 @@ func (j *JaipurHub) BroadcastUser(channelID int32, UUID string, data []byte) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+// GameOver GameOver
+func (j *JaipurHub) GameOver(gameID int32) {
+	// 刪掉遊戲
+	delete(j.Hub, gameID)
 }

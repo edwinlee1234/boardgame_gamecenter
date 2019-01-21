@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -47,7 +48,7 @@ type PlayerInfo struct {
 	Card  []string `json:"card"`
 	Camel int32    `json:"camel"`
 	Point int32    `json:"point"`
-	Bouns []int32  `json:"bouns"`
+	Bonus []int32  `json:"bonus"`
 }
 
 // OpponentPlayer info
@@ -65,54 +66,86 @@ type Action struct {
 	SwitchTargetCard []int32
 }
 
-// TakeEvent 拿牌Event
-type TakeEvent struct {
-	Event string        `json:"event"`
-	Info  TakeEventInfo `json:"info"`
+// TakeEventPublic 拿牌Event
+type TakeEventPublic struct {
+	Event string              `json:"event"`
+	Info  TakeEventPublicInfo `json:"info"`
 }
 
-// TakeEventInfo 拿牌Event Info
-type TakeEventInfo struct {
-	DeskCardNum int32 `json:"deskCardNum"`
-	PlayerID    int32 `json:"playerID"`
+// TakeEventPublicInfo 拿牌Event Info
+type TakeEventPublicInfo struct {
+	TakeDeskCardNum []int32  `json:"takeDeskCardNum"`
+	NewDeskCard     []string `json:"newDeskCard"`
+	DeskCard        []string `json:"deskCard"`
+	FoldCardNum     int32    `json:"foldCardNum"`
+	PlayerID        int32    `json:"playerID"`
+	ActionPlayer    int32    `json:"actionPlayer"`
 }
 
 // TakeEventPrivate 拿牌Event user (動作的user專用)
 type TakeEventPrivate struct {
 	Event string               `json:"event"`
-	Info  TakeEventInfoPrivate `json:"info"`
+	Info  TakeEventPrivateInfo `json:"info"`
 }
 
-// TakeEventInfoPrivate 拿牌Event Info (動作的user專用)
-type TakeEventInfoPrivate struct {
-	DeskCardNum int32
-	Card        []string `json:"card"`
+// TakeEventPrivateInfo 拿牌Event Info (動作的user專用)
+type TakeEventPrivateInfo struct {
+	Card  []string `json:"card"`
+	Camel int32    `json:"camel"`
 }
 
-// SellEvent 拿牌Event
-type SellEvent struct {
-	Event string        `json:"event"`
-	Info  TakeEventInfo `json:"info"`
+// SellEventPublic 拿牌Event
+type SellEventPublic struct {
+	Event string              `json:"event"`
+	Info  SellEventPublicInfo `json:"info"`
 }
 
-// SellEventInfo 拿牌Event Info
-type SellEventInfo struct {
-	DeskCardNum int32              `json:"deskCardNum"`
-	NewCard     string             `json:"newCard"`
-	FoldCardNum int32              `json:"foldCardNum"`
-	CardsPoint  map[string][]int32 `json:"cardsPoint"`
+// SellEventPublicInfo 拿牌Event Info
+type SellEventPublicInfo struct {
+	CardsPoint   map[string][]int32 `json:"cardsPoint"`
+	SellCards    []string           `json:"sellcards"`
+	PlayerID     int32              `json:"playerID"`
+	ActionPlayer int32              `json:"actionPlayer"`
 }
 
 // SellEventPrivate 賣牌 (動作的user專用)
 type SellEventPrivate struct {
 	Event string               `json:"event"`
-	Info  SellEventInfoPrivate `json:"info"`
+	Info  SellEventPrivateInfo `json:"info"`
 }
 
-// SellEventInfoPrivate 賣牌 (動作的user專用)
-type SellEventInfoPrivate struct {
+// SellEventPrivateInfo 賣牌 (動作的user專用)
+type SellEventPrivateInfo struct {
 	Bonus int32    `json:"bonus"`
 	Card  []string `json:"card"`
+	Point int32    `json:"point"`
+}
+
+// SwitchEventPublic 拿牌Event
+type SwitchEventPublic struct {
+	Event string                `json:"event"`
+	Info  SwitchEventPublicInfo `json:"info"`
+}
+
+// SwitchEventPublicInfo 拿牌Event Info
+type SwitchEventPublicInfo struct {
+	TakeDeskCardNum []int32  `json:"takeDeskCardNum"`
+	NewDeskCard     []string `json:"newDeskCard"`
+	DeskCard        []string `json:"deskCard"`
+	PlayerID        int32    `json:"playerID"`
+	ActionPlayer    int32    `json:"actionPlayer"`
+}
+
+// SwitchEventPrivate 換牌 (動作的user專用)
+type SwitchEventPrivate struct {
+	Event string                 `json:"event"`
+	Info  SwitchEventPrivateInfo `json:"info"`
+}
+
+// SwitchEventPrivateInfo 換牌 (動作的user專用)
+type SwitchEventPrivateInfo struct {
+	Card  []string `json:"card"`
+	Camel int32    `json:"camel"`
 }
 
 // InfoEvent InfoEvent
@@ -135,6 +168,25 @@ type UserInfoEvent struct {
 	Event    string         `json:"event"`
 	UserInfo PlayerInfo     `json:"player_info"`
 	Opponent OpponentPlayer `json:"opponentPlayer"`
+}
+
+// OpponentChangeEvent OpponentChangeEvent
+type OpponentChangeEvent struct {
+	Event    string         `json:"event"`
+	Opponent OpponentPlayer `json:"opponentPlayer"`
+}
+
+// GameOverEvent GameOverEvent
+type GameOverEvent struct {
+	Event string            `json:"event"`
+	Info  GameOverEventInfo `json:"info"`
+}
+
+// GameOverEventInfo GameOverEventInfo
+type GameOverEventInfo struct {
+	WinnerID           int32   `json:"winnerID"`
+	CamelBonusWinnerID int32   `json:"camelBonusWinnerID"`
+	Players            Players `json:"players"`
 }
 
 // Info 遊戲的資料，包括某玩家的牌
@@ -207,8 +259,9 @@ func (j *Jaipur) Init(usersInfo map[int32]string) {
 
 	cardType := []string{"sliver", "gold", "diamond", "leather", "spice", "cloth", "camel"}
 	var totalCard []string
-	j.cardsPoint = cardsPoint
-	nowCardsNum := cardsNum
+	j.cardsPoint = getCardPoint()
+	nowCardsNum := getCardNum()
+	var gameTotalCard = cardTotal
 
 	// 兩方玩家發牌
 	for ID, UUID := range usersInfo {
@@ -260,12 +313,12 @@ func (j *Jaipur) Init(usersInfo map[int32]string) {
 			[]int32{},
 		})
 
-		cardTotal -= 5
+		gameTotalCard -= 5
 	}
 
 	// 全部的牌random一次
 	i := 0
-	for i < cardTotal {
+	for i < gameTotalCard {
 		num := rand.Intn(7)
 		card := cardType[num]
 		if nowCardsNum[card] <= 0 {
@@ -331,9 +384,6 @@ func (j *Jaipur) Action(userID int32, act Action) error {
 	}
 
 	// 換牌以外，都要判斷輸贏
-	// 換另外一個的人局合
-	j.switchPlayer()
-
 	return nil
 }
 
@@ -401,14 +451,57 @@ func (j *Jaipur) takeCard(userID int32, takeCardKey int32) error {
 	}
 
 	// 一張一張抽新的，把舊的換掉或刪掉
+	var newCard []string
 	for _, cardPosition := range takeCardKeys {
-		j.takeOneAndPushNewOneCard(cardPosition)
+		newCard = append(newCard, j.takeOneAndPushNewOneCard(cardPosition))
 	}
+
+	// 換行動玩家
+	j.switchPlayer()
+
 	fmt.Println("********")
+
+	// 推播 遊戲內的全部人
+	publicInfo := TakeEventPublic{
+		Event: "TakeCardPublic",
+		Info: TakeEventPublicInfo{
+			TakeDeskCardNum: takeCardKeys,
+			NewDeskCard:     newCard,
+			DeskCard:        j.deskCard,
+			FoldCardNum:     int32(len(j.foldCard)),
+			PlayerID:        player.ID,
+			ActionPlayer:    j.players[j.actionPlayer].ID,
+		},
+	}
+	publicJSON, _ := json.Marshal(publicInfo)
+	j.hub.BroadcastChannel(j.gameID, publicJSON)
+
+	// 推播 拿卡的玩家
+	privateInfo := TakeEventPrivate{
+		Event: "TakeCardPrivate",
+		Info: TakeEventPrivateInfo{
+			Card:  player.Card,
+			Camel: player.Camel,
+		},
+	}
+	privateJSON, _ := json.Marshal(privateInfo)
+	j.hub.BroadcastUser(j.gameID, player.UUID, privateJSON)
+
+	// 推給對手，手牌的變動
+	j.opponentChange(int32(len(player.Card)), player.Camel > 0, player.ID)
+
+	// 檢查遊戲結束了沒
+	if j.checkGameOver() {
+		// 遊戲結束
+		j.gameOverEvent()
+		fmt.Println("GameOver!!!!")
+	}
+
 	return nil
 }
 
 func (j *Jaipur) sellCard(userID int32, cards []int32) error {
+	fmt.Println("********")
 	player, err := j.getPlayer(userID)
 	if err != nil {
 		return err
@@ -454,28 +547,17 @@ func (j *Jaipur) sellCard(userID int32, cards []int32) error {
 	}
 
 	// 賣掉換分
+	log.Printf("sellCards: %v", sellCards)
 	var point int32
-	pointList := j.cardsPoint[sellCardType]
-	pointNum := 0
-	i := 0
-	safePoint := 0
-	for safePoint <= 20 {
-		if pointList[i] != 0 {
-			point += pointList[i]
-			// point被拿走了，歸0
-			pointList[i] = 0
-			pointNum++
-		}
-
-		if pointNum >= len(cards) {
+	for _, cardType := range sellCards {
+		// 沒分數了
+		if len(j.cardsPoint[cardType]) <= 0 {
 			break
 		}
 
-		i++
-		safePoint++
+		point += j.cardsPoint[cardType][0]
+		j.cardsPoint[cardType] = j.cardsPoint[cardType][1:]
 	}
-
-	fmt.Println(point)
 
 	// 卡拿掉
 	var newPlayerCards []string
@@ -487,42 +569,89 @@ func (j *Jaipur) sellCard(userID int32, cards []int32) error {
 				notDel = false
 				break
 			}
+		}
 
-			if notDel {
-				newPlayerCards = append(newPlayerCards, cardV)
-			}
+		if notDel {
+			newPlayerCards = append(newPlayerCards, cardV)
 		}
 	}
+	log.Printf("old plyer cards: %v", player.Card)
+	log.Printf("new player cards: %v", newPlayerCards)
 	player.Card = newPlayerCards
 
 	// Player 加分數
 	player.Point += point
 
 	// 如果賣>=3張就抽bonus
+	var bonus int32
+	var bonusType string
 	if len(cards) >= 3 {
-		var bouns int32
-		var bounsType string
-
 		switch len(cards) {
 		case 3:
-			bounsType = "three_bonus"
+			bonusType = "three_bonus"
 			break
 		case 4:
-			bounsType = "four_bonus"
+			bonusType = "four_bonus"
 			break
-		case 5:
-			bounsType = "five_bonus"
+		default:
+			bonusType = "five_bonus"
 			break
 		}
 
-		bonusList := bonusNum[bounsType]
-		randomNum := rand.Intn(len(bonusList))
-		bouns = bonusList[randomNum]
+		// TODO bonus有限，這邊要把拿掉的刪掉
+		rand.Seed(time.Now().UnixNano()) // run seed
+		log.Printf("bonus: %s", bonusType)
+		bonusList := bonusNum[bonusType]
 
-		player.Bouns = append(player.Bouns, bouns)
+		log.Printf("bonusList: %v", bonusList)
+		randomNum := rand.Intn(len(bonusList))
+		bonus = bonusList[randomNum]
+		log.Printf("bonus: %d", bonus)
+
+		player.Bonus = append(player.Bonus, bonus)
+		// 加分
+		player.Point += bonus
 	}
 
-	// TODO 贏輸判斷
+	// 換行動玩家
+	j.switchPlayer()
+
+	publicEvent := SellEventPublic{
+		Event: "SellEventPublic",
+		Info: SellEventPublicInfo{
+			CardsPoint:   j.cardsPoint,
+			SellCards:    sellCards,
+			PlayerID:     player.ID,
+			ActionPlayer: j.players[j.actionPlayer].ID,
+		},
+	}
+
+	publicJSON, _ := json.Marshal(publicEvent)
+	j.hub.BroadcastChannel(j.gameID, publicJSON)
+
+	privateEvent := SellEventPrivate{
+		Event: "SellEventPrivate",
+		Info: SellEventPrivateInfo{
+			Bonus: bonus,
+			Card:  player.Card,
+			Point: player.Point,
+		},
+	}
+
+	privateJSON, _ := json.Marshal(privateEvent)
+	j.hub.BroadcastUser(j.gameID, player.UUID, privateJSON)
+
+	// 推給對手，手牌的變動
+	j.opponentChange(int32(len(player.Card)), player.Camel > 0, player.ID)
+
+	// 檢查遊戲結束了沒
+	if j.checkGameOver() {
+		// 遊戲結束
+		j.gameOverEvent()
+		fmt.Println("GameOver!!!!")
+	}
+
+	fmt.Println("********")
 
 	return nil
 }
@@ -535,7 +664,7 @@ func (j *Jaipur) switchCard(userID int32, selfCards []int32, targetCards []int32
 
 	// 檢查交換的數量有沒有一樣
 	if len(selfCards) != len(targetCards) {
-		return errors.New("selfCards targetCards num must be equal ")
+		return errors.New("selfCards targetCards num must be equal")
 	}
 
 	player, err := j.getPlayer(userID)
@@ -550,43 +679,194 @@ func (j *Jaipur) switchCard(userID int32, selfCards []int32, targetCards []int32
 		}
 	}
 
+	// 檢查交換的手牌跟場上有沒有重復
+	for _, selfVal := range selfCards {
+		for _, tarVal := range targetCards {
+			if selfVal == -1 && j.deskCard[tarVal] == "camel" {
+				return errors.New("can't not switch same card!!!!")
+			}
+			if selfVal != -1 && player.Card[selfVal] == j.deskCard[tarVal] {
+				return errors.New("can't not switch same card!!!!")
+			}
+		}
+	}
+
 	// 交換
 	// selfCards帶-1就是camel
+	var newCard []string
 	for i := 0; i < len(selfCards); i++ {
 		if selfCards[i] == -1 {
-			// 檢查camel的數量夠不夠
-			if player.Camel < int32(len(selfCards)) {
+			if player.Camel-1 < 0 {
 				return errors.New("camel num Error")
 			}
-			// 有沒有滿手牌
+
 			if len(player.Card)+1 > 7 {
 				return errors.New("full cards")
 			}
 
+			// camel推到桌上的牌
 			player.Card = append(player.Card, j.deskCard[targetCards[i]])
-			j.takeOneAndPushNewOneCard(targetCards[i])
+			newCard = append(newCard, "camel")
+			j.deskCard[targetCards[i]] = "camel"
 
 			// 減掉玩家的camel數
-			player.Camel -= int32(len(selfCards))
+			player.Camel--
 		} else {
-			// 直接交換
+			// 不是camel就用手上的牌直接交換
 			deskCardTmp := j.deskCard[targetCards[i]]
+			newCard = append(newCard, deskCardTmp)
 			j.deskCard[targetCards[i]] = player.Card[selfCards[i]]
 			player.Card[selfCards[i]] = deskCardTmp
 		}
 	}
 
+	// 換行動玩家
+	j.switchPlayer()
+
+	// 推播 遊戲內的全部人
+	publicInfo := SwitchEventPublic{
+		Event: "SwitchEventPublic",
+		Info: SwitchEventPublicInfo{
+			TakeDeskCardNum: targetCards,
+			NewDeskCard:     newCard,
+			DeskCard:        j.deskCard,
+			PlayerID:        player.ID,
+			ActionPlayer:    j.players[j.actionPlayer].ID,
+		},
+	}
+	publicJSON, _ := json.Marshal(publicInfo)
+	j.hub.BroadcastChannel(j.gameID, publicJSON)
+
+	// 推播 拿卡的玩家
+	privateInfo := SwitchEventPrivate{
+		Event: "SwitchEventPrivate",
+		Info: SwitchEventPrivateInfo{
+			Card:  player.Card,
+			Camel: player.Camel,
+		},
+	}
+	privateJSON, _ := json.Marshal(privateInfo)
+	j.hub.BroadcastUser(j.gameID, player.UUID, privateJSON)
+
+	// 推給對手，手牌的變動
+	j.opponentChange(int32(len(player.Card)), player.Camel > 0, player.ID)
+
 	return nil
 }
 
-// JudgeWinOrLoss 判斷輸贏
-func (j *Jaipur) JudgeWinOrLoss() {
-	// 1.牌拿光
-	// 2.三個類型的牌被賣光
-	// 達到條件後，那一回合後馬上game over
+// 判斷輸贏
+func (j *Jaipur) judgeWinOrLoss() {
+
 }
 
-func (j *Jaipur) takeOneAndPushNewOneCard(cardPosition int32) {
+// 看遊戲結束了沒
+func (j *Jaipur) checkGameOver() bool {
+	// 達到條件後，那一回合後馬上game over
+	// 1.牌拿光
+	if len(j.foldCard) <= 0 {
+		return true
+	}
+
+	// 2.三個類型的牌被賣光
+	three := 0
+	for _, list := range j.cardsPoint {
+		if len(list) <= 0 {
+			three++
+		}
+	}
+
+	if three == 3 {
+		return true
+	}
+
+	return false
+}
+
+// 推播給對方的卡牌數變化，跟有沒有cammel
+func (j *Jaipur) opponentChange(cardsNum int32, haveCamel bool, actionUserID int32) {
+	// 找出這個userID的對手
+	var pushPlayer PlayerInfo
+	for _, v := range j.players {
+		if v.ID != actionUserID {
+			pushPlayer = v
+		}
+	}
+
+	event := OpponentChangeEvent{
+		Event: "OpponentChangeEvent",
+		Opponent: OpponentPlayer{
+			cardsNum,
+			haveCamel,
+		},
+	}
+
+	eventJSON, _ := json.Marshal(event)
+	j.hub.BroadcastUser(j.gameID, pushPlayer.UUID, eventJSON)
+}
+
+// 贏的時候
+func (j *Jaipur) gameOverEvent() {
+	// 算那個cammel比較多，會多加5分
+	player1 := j.players[0]
+	player2 := j.players[1]
+
+	var camelWinner int32
+	if player1.Camel > player2.Camel {
+		player1.Bonus = append(player1.Bonus, 5)
+		player1.Point += 5
+		camelWinner = player1.ID
+	}
+
+	if player2.Camel > player1.Camel {
+		player2.Bonus = append(player2.Bonus, 5)
+		player2.Point += 5
+		camelWinner = player2.ID
+	}
+
+	// 把兩邊的分數都公開跟贏家是誰
+	var winnerID int32
+	if player1.Point > player2.Point {
+		winnerID = player1.ID
+	}
+
+	if player2.Point > player1.Point {
+		winnerID = player2.ID
+	}
+
+	// 如果分數都一樣，那有camel bonus的人贏
+	if player1.Point == player2.Point {
+		if camelWinner == player1.ID {
+			winnerID = player1.ID
+		}
+
+		if camelWinner == player2.ID {
+			winnerID = player2.ID
+		}
+	}
+
+	// 如果都分不出誰贏，就算場主贏 (第一個玩家)
+	if winnerID == 0 {
+		winnerID = j.players[0].ID
+	}
+
+	// 推播
+	event := GameOverEvent{
+		Event: "GameOverEvent",
+		Info: GameOverEventInfo{
+			WinnerID:           winnerID,
+			CamelBonusWinnerID: camelWinner,
+			Players:            j.players,
+		},
+	}
+
+	eventJSON, _ := json.Marshal(event)
+	j.hub.BroadcastChannel(j.gameID, eventJSON)
+
+	// destory game
+	j.hub.GameOver(j.gameID)
+}
+
+func (j *Jaipur) takeOneAndPushNewOneCard(cardPosition int32) string {
 	// 抽一張新的
 	var newCard string
 	if len(j.foldCard) > 0 {
@@ -601,4 +881,6 @@ func (j *Jaipur) takeOneAndPushNewOneCard(cardPosition int32) {
 	} else {
 		j.deskCard = append(j.deskCard[:cardPosition], j.deskCard[cardPosition+1:]...)
 	}
+
+	return newCard
 }

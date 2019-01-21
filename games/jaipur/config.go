@@ -33,8 +33,35 @@ var cardsPoint = map[string][]int32{
 }
 
 var bonusNum = map[string][]int32{
-	"ten_bonus":   {10, 10},
-	"six_bonus":   {6, 6},
+	"five_bonus":  {10, 10},
+	"four_bonus":  {6, 6},
 	"three_bonus": {3, 3},
 	"camel_bonus": {5},
+}
+
+func getCardNum() map[string]int32 {
+	res := make(map[string]int32)
+	for k, v := range cardsNum {
+		res[k] = v
+	}
+
+	return res
+}
+
+func getCardPoint() map[string][]int32 {
+	res := make(map[string][]int32)
+	for k, v := range cardsPoint {
+		res[k] = v
+	}
+
+	return res
+}
+
+func getBonusNum() map[string][]int32 {
+	res := make(map[string][]int32)
+	for k, v := range bonusNum {
+		res[k] = v
+	}
+
+	return res
 }

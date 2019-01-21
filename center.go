@@ -2,10 +2,11 @@ package main
 
 import (
 	"errors"
+	"log"
 
-	pb "./proto"
+	pb "boardgame_gamecenter/proto"
 
-	jaipurClass "./games/jaipur"
+	jaipurClass "boardgame_gamecenter/games/jaipur"
 )
 
 func newCenter() *Center {
@@ -25,8 +26,23 @@ type Center struct {
 func (c *Center) GameInfo(userID []int32, gameID int32, gameType string) error {
 	switch {
 	case gameType == "jaipur":
-		c.jaipurHub.NewGame(gameID)
 		if err := c.jaipurHub.Info(userID, gameID); err != nil {
+			return err
+		}
+		break
+	default:
+		return errors.New("No this game")
+	}
+
+	return nil
+}
+
+// ActionProcess ActionProcess
+func (c *Center) ActionProcess(userID int32, gameID int32, gameType string, action interface{}) error {
+	switch {
+	case gameType == "jaipur":
+		if err := c.jaipurHub.Action(userID, gameID, action); err != nil {
+			log.Printf("%v", err)
 			return err
 		}
 		break
@@ -40,11 +56,11 @@ func (c *Center) GameInfo(userID []int32, gameID int32, gameType string) error {
 // CreateGame Center 創立新遊戲
 func (c *Center) CreateGame(gameID int32, gameType string, players *pb.Players) error {
 	usersInfo := convertUsersInfo(players)
-
 	switch {
 	case gameType == "jaipur":
 		c.jaipurHub.NewGame(gameID)
 		if err := c.jaipurHub.Init(gameID, usersInfo); err != nil {
+			log.Printf("%v", err)
 			return err
 		}
 		break

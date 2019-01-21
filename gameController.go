@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	pb "./proto"
+	pb "boardgame_gamecenter/proto"
 )
 
 // 新增遊戲
@@ -32,6 +32,21 @@ func (s *server) GameInfo(ctx context.Context, in *pb.GameInfoRequest) (*pb.Game
 	}
 
 	return &pb.GameInfoReply{
+		State: "success",
+	}, nil
+}
+
+// Action
+func (s *server) JaipurAction(ctx context.Context, in *pb.JaipurActionRequest) (*pb.JaipurActionReply, error) {
+	err := gameCenter.ActionProcess(in.UserID, in.GameID, in.GameType, in.Action)
+
+	if err != nil {
+		return &pb.JaipurActionReply{
+			State: "error",
+		}, err
+	}
+
+	return &pb.JaipurActionReply{
 		State: "success",
 	}, nil
 }
