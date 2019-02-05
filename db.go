@@ -1,19 +1,20 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"os"
+
+	model "boardgame_gamecenter/model"
 
 	"github.com/joho/godotenv"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func connectDb() {
+func connectDB() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error loading .env file %v", err)
+		log.Panic(err)
 	}
 
 	dbUser := os.Getenv("DB_USER")
@@ -22,10 +23,7 @@ func connectDb() {
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
 
-	db, err = sql.Open(
-		"mysql", dbUser+":"+dbPassword+"@tcp("+dbHost+":"+dbPort+")/"+dbName+"?charset=utf8mb4")
-
-	if err != nil {
-		log.Fatalf("Error MySQL Connect %v", err)
+	if err := model.Connect(dbUser, dbPassword, dbHost, dbPort, dbName); err != nil {
+		log.Panic(err)
 	}
 }
