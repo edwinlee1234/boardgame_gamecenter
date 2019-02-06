@@ -1,41 +1,35 @@
 package jaipur
 
 import (
-	"bytes"
-	"encoding/json"
+	lib "boardgame_gamecenter/lib"
+	model "boardgame_gamecenter/model"
+	pb "boardgame_gamecenter/proto"
+	redis "boardgame_gamecenter/redis"
 	"errors"
 	"log"
-	"net/http"
-
-	pb "boardgame_gamecenter/proto"
 )
 
-// BroadcastRequest 推播的request格式
-type BroadcastRequest struct {
-	ChannelID int32  `json:"channed_id"`
-	Data      []byte `json:"data"`
-}
-
-// BroadcastUserRequest 推播單一user的request格式
-type BroadcastUserRequest struct {
-	ChannelID int32  `json:"channed_id"`
-	UUID      string `json:"UUID"`
-	Data      []byte `json:"data"`
-}
-
 // NewHub NewHub
-func NewHub(WsAPI string) *JaipurHub {
+func NewHub(WS *lib.WS) *JaipurHub {
 	return &JaipurHub{
-		Hub:   make(map[int32]*Jaipur),
-		WsAPI: WsAPI,
+		Hub: make(map[int32]*Jaipur),
+		WS:  WS,
 	}
 }
 
 // JaipurHub 放Jaipur的遊戲
 type JaipurHub struct {
 	Hub map[int32]*Jaipur
-	// TODO Broadcast把它抽出去gamecenter實作 -> WsAPI抽出去
-	WsAPI string
+	WS  *lib.WS
+}
+
+// CheckUserValid CheckUserValid
+func (j *JaipurHub) CheckUserValid(usersInfo map[int32]string) error {
+	if len(usersInfo) != 2 {
+		return errors.New("much be two player")
+	}
+
+	return nil
 }
 
 // NewGame NewGame
@@ -105,38 +99,33 @@ func (j *JaipurHub) Action(userID int32, gameID int32, act interface{}) error {
 	return nil
 }
 
-// TODO Broadcast把它抽出去gamecenter實作
 // BroadcastChannel BroadcastChannel
 func (j *JaipurHub) BroadcastChannel(channelID int32, data []byte) {
-	var req BroadcastRequest
-	req.ChannelID = channelID
-	req.Data = data
-
-	jsonValue, _ := json.Marshal(req)
-	_, err := http.Post(j.WsAPI+"/broadcast", "application/json", bytes.NewBuffer(jsonValue))
-
-	if err != nil {
-		log.Println(err)
-	}
+	j.WS.BroadcastChannel(channelID, data)
 }
 
 // BroadcastUser BroadcastUser
 func (j *JaipurHub) BroadcastUser(channelID int32, UUID string, data []byte) {
-	var req BroadcastUserRequest
-	req.ChannelID = channelID
-	req.UUID = UUID
-	req.Data = data
-
-	jsonValue, _ := json.Marshal(req)
-	_, err := http.Post(j.WsAPI+"/broadcastUser", "application/json", bytes.NewBuffer(jsonValue))
-
-	if err != nil {
-		log.Println(err)
-	}
+	j.WS.BroadcastUser(channelID, UUID, data)
 }
 
 // GameOver GameOver
 func (j *JaipurHub) GameOver(gameID int32) {
 	// 刪掉遊戲
 	delete(j.Hub, gameID)
+	redis.DelGame(gameID)
+
+	err := model.ChangeGameStateDB(gameID, model.Close)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+// RecordResult RecordResult
+func (j *JaipurHub) RecordResult(gameID int32, player1ID int32, player2ID int32, winnerID int32, extraInfo []byte) {
+	_, err := model.InsertJaipurResult(gameID, player1ID, player2ID, winnerID, extraInfo)
+
+	if err != nil {
+		log.Println(err)
+	}
 }

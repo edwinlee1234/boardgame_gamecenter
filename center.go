@@ -4,14 +4,15 @@ import (
 	"errors"
 	"log"
 
+	lib "boardgame_gamecenter/lib"
 	pb "boardgame_gamecenter/proto"
 
 	jaipurClass "boardgame_gamecenter/games/jaipur"
 )
 
-func newCenter() *Center {
+func newCenter(WS *lib.WS) *Center {
 	return &Center{
-		jaipurHub: jaipurClass.NewHub(wsURL),
+		jaipurHub: jaipurClass.NewHub(WS),
 	}
 }
 
@@ -54,12 +55,18 @@ func (c *Center) ActionProcess(userID int32, gameID int32, gameType string, acti
 }
 
 // CreateGame Center 創立新遊戲
-func (c *Center) CreateGame(gameID int32, gameType string, players *pb.Players) error {
+func (c *Center) CreateGame(gameID int32, gameType string, players *pb.Players) (err error) {
 	usersInfo := convertUsersInfo(players)
 	switch {
 	case gameType == "jaipur":
+		// 檢查人數
+		if err = c.jaipurHub.CheckUserValid(usersInfo); err != nil {
+			log.Printf("%v", err)
+			return err
+		}
+
 		c.jaipurHub.NewGame(gameID)
-		if err := c.jaipurHub.Init(gameID, usersInfo); err != nil {
+		if err = c.jaipurHub.Init(gameID, usersInfo); err != nil {
 			log.Printf("%v", err)
 			return err
 		}

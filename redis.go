@@ -4,8 +4,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
+
+	redis "boardgame_gamecenter/redis"
 )
 
 func connectRedis() {
@@ -17,16 +18,7 @@ func connectRedis() {
 	host := os.Getenv("REDIS_HOST")
 	password := os.Getenv("REDIS_PASSWORD")
 	port := os.Getenv("REDIS_PORT")
+	addr := host + ":" + port
 
-	// 建立連線
-	goRedis = redis.NewClient(&redis.Options{
-		Addr:     host + ":" + port,
-		Password: password,
-		DB:       0, // use default DB
-	})
-
-	_, err = goRedis.Ping().Result()
-	if err != nil {
-		log.Fatalf("Ping Redis Error: %v", err)
-	}
+	redis.ConnectClient(addr, password, 0)
 }
