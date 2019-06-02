@@ -1,8 +1,9 @@
 // TODO
+寫game的測試
+init action gameover....
 
-// 一個遊戲開一個go func
-讓game的物件掛在那邊
-gameover就讓它死掉
-實作看看
+會有race condition的問題嗎？
+改動變數的時候lock起來
 
-
+改版優化之後測看看記憶體不下降的問題
+runtime.MemStats

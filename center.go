@@ -59,6 +59,7 @@ func (c *Center) CreateGame(gameID int32, gameType string, players *pb.Players) 
 	usersInfo := convertUsersInfo(players)
 	switch {
 	case gameType == "jaipur":
+		// TODO 這些邏輯都帶到c.jaipurHub.NewGame裡面，不要放在這裡，用err來判斷對不對就好了
 		// 檢查人數
 		if err = c.jaipurHub.CheckUserValid(usersInfo); err != nil {
 			log.Printf("%v", err)

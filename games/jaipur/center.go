@@ -7,6 +7,7 @@ import (
 	redis "boardgame_gamecenter/redis"
 	"errors"
 	"log"
+	"time"
 )
 
 // NewHub NewHub
@@ -123,7 +124,8 @@ func (j *JaipurHub) GameOver(gameID int32) {
 
 // RecordResult RecordResult
 func (j *JaipurHub) RecordResult(gameID int32, player1ID int32, player2ID int32, winnerID int32, extraInfo []byte) {
-	_, err := model.InsertJaipurResult(gameID, player1ID, player2ID, winnerID, extraInfo)
+	timestamp := time.Now().Unix()
+	_, err := model.InsertJaipurResult(gameID, player1ID, player2ID, winnerID, extraInfo, timestamp)
 
 	if err != nil {
 		log.Println(err)

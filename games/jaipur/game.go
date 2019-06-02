@@ -863,7 +863,18 @@ func (j *Jaipur) gameOverEvent() {
 	j.hub.BroadcastChannel(j.gameID, eventJSON)
 
 	// 寫db
-	j.hub.RecordResult(j.gameID, player1.ID, player2.ID, winnerID, []byte{})
+	extraInfo := map[string]interface{}{}
+	extraInfo["player1"] = map[string]interface{}{
+		"id":    player1.ID,
+		"point": player1.Point,
+	}
+	extraInfo["player2"] = map[string]interface{}{
+		"id":    player2.ID,
+		"point": player2.Point,
+	}
+	extraInfoJSON, _ := json.Marshal(extraInfo)
+
+	j.hub.RecordResult(j.gameID, player1.ID, player2.ID, winnerID, extraInfoJSON)
 	// destory game
 	j.hub.GameOver(j.gameID)
 }

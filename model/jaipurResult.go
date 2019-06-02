@@ -10,13 +10,13 @@ type JaipurResult struct {
 }
 
 // InsertJaipurResult 新增一局遊戲
-func InsertJaipurResult(gameID int32, player1ID int32, player2ID int32, winnerID int32, extraInfo []byte) (int32, error) {
-	stmt, err := DB.Prepare("INSERT INTO jaipur_result (game_id, player1_id, player2_id, winner_id, extra_info) VALUES (?, ?, ?, ?, ?)")
+func InsertJaipurResult(gameID int32, player1ID int32, player2ID int32, winnerID int32, extraInfo []byte, createTimestamp int64) (int32, error) {
+	stmt, err := DB.Prepare("INSERT INTO jaipur_result (game_id, player1_id, player2_id, winner_id, extra_info, create_timestamp) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
 
-	val, err := stmt.Exec(gameID, player1ID, player2ID, winnerID, extraInfo)
+	val, err := stmt.Exec(gameID, player1ID, player2ID, winnerID, extraInfo, createTimestamp)
 	if err != nil {
 		return 0, err
 	}
