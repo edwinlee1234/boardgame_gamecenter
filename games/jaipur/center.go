@@ -24,8 +24,8 @@ type JaipurHub struct {
 	WS  *lib.WS
 }
 
-// CheckUserValid CheckUserValid
-func (j *JaipurHub) CheckUserValid(usersInfo map[int32]string) error {
+// checkValid checkValid
+func (j *JaipurHub) checkValid(usersInfo map[int32]string, extraInfo map[string]interface{}) error {
 	if len(usersInfo) != 2 {
 		return errors.New("much be two player")
 	}
@@ -34,29 +34,26 @@ func (j *JaipurHub) CheckUserValid(usersInfo map[int32]string) error {
 }
 
 // NewGame NewGame
-func (j *JaipurHub) NewGame(gameID int32) {
+func (j *JaipurHub) NewGame(gameID int32, usersInfo map[int32]string, extraInfo map[string]interface{}) error {
+	// 檢查遊戲參數
+	if err := j.checkValid(usersInfo, extraInfo); err != nil {
+		return err
+	}
+
 	// 沒有這遊戲ID才開新的
 	if err := j.checkGame(gameID); err != nil {
 		j.Hub[gameID] = NewJaipur(gameID, j)
 	}
+
+	j.Hub[gameID].Init(usersInfo)
+
+	return nil
 }
 
 func (j *JaipurHub) checkGame(gameID int32) error {
 	if _, exist := j.Hub[gameID]; !exist {
 		return errors.New("No Game")
 	}
-
-	return nil
-}
-
-// Init Init
-func (j *JaipurHub) Init(gameID int32, usersInfo map[int32]string) error {
-	if err := j.checkGame(gameID); err != nil {
-		return errors.New("No Game")
-	}
-
-	JaipurClass := j.Hub[gameID]
-	JaipurClass.Init(usersInfo)
 
 	return nil
 }

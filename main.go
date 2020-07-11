@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -40,6 +41,7 @@ func (s *server) Ping(ctx context.Context, in *pb.TestRequest) (*pb.TestReply, e
 
 // 開啓gRPC服務
 func createGrpcServer() {
+	fmt.Println("Game center Runing")
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
